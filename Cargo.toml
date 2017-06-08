@@ -1,0 +1,7 @@
+[package]
+name = "rust-snake"
+version = "0.1.0"
+authors = ["daniel@bengtssons.info"]
+
+[dependencies]
+pancurses = "0.8"
