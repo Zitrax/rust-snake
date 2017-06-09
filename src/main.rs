@@ -2,6 +2,7 @@ extern crate pancurses;
 
 use pancurses::{initscr, curs_set, endwin, Input, noecho};
 use std::{thread, time};
+use std::collections::VecDeque;
 
 enum Direction {
     Left,
@@ -11,10 +12,16 @@ enum Direction {
     Still,
 }
 
-struct Snake {
+#[derive(Clone, Debug)]
+struct Pos {
     x: i32,
     y: i32,
+}
+
+struct Snake {
+    p: VecDeque<Pos>,
     d: Direction,
+    l: usize
 }
 
 fn main() {
@@ -22,21 +29,24 @@ fn main() {
     win.nodelay(true); // Makes getch() non-blocking
 
     let mut snake = Snake {
-        x: 0,
-        y: 0,
+        p: VecDeque::new(),
         d: Direction::Still,
+        l: 10
     };
+    snake.p.push_front(Pos { x: 0, y: 0 });
 
     // Hide cursor
     curs_set(0);
     noecho();
 
     loop {
-        win.mvaddch(snake.y, snake.x, '@');
-        thread::sleep(time::Duration::from_millis(100));
+        for pos in snake.p.iter() {
+            win.mvaddch(pos.y, pos.x, '@');
+        }
+
+        thread::sleep(time::Duration::from_millis(50));
         match win.getch() {
             Some(k) => {
-                //println!("{:?}", k);
                 match k {
                     // FIXME: Arrow keys are not detected (sends three chars)
                     Input::Character('w') => snake.d = Direction::Up,
@@ -49,12 +59,17 @@ fn main() {
             }
             None => (),
         }
+        let head = snake.p.front().unwrap().clone();
         match snake.d {
-            Direction::Up => snake.y -= 1,
-            Direction::Down => snake.y += 1,
-            Direction::Left => snake.x -= 1,
-            Direction::Right => snake.x += 1,
-            Direction::Still => (),
+            Direction::Up => snake.p.push_front(Pos{x: head.x, y: head.y-1}),
+            Direction::Down => snake.p.push_front(Pos{x: head.x, y: head.y+1}),
+            Direction::Left => snake.p.push_front(Pos{x: head.x-1, y: head.y}),
+            Direction::Right => snake.p.push_front(Pos{x: head.x+1, y: head.y}),
+            Direction::Still => ()
+        }
+        if snake.p.len() > snake.l {
+            let back = snake.p.pop_back().unwrap();
+            win.mvaddch(back.y, back.x, ' ');
         }
     }
     endwin();
