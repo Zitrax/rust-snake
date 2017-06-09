@@ -3,18 +3,29 @@ extern crate pancurses;
 use pancurses::{initscr, curs_set, endwin, Input, noecho};
 use std::{thread, time};
 
+enum Direction {
+    Left,
+    Right,
+    Up,
+    Down,
+    Still,
+}
+
 struct Snake {
     x: i32,
     y: i32,
-    l: i32,
+    d: Direction,
 }
 
 fn main() {
     let win = initscr();
     win.nodelay(true); // Makes getch() non-blocking
 
-    // TODO: Can we default these ?
-    let mut snake = Snake { x: 0, y: 0, l: 1 };
+    let mut snake = Snake {
+        x: 0,
+        y: 0,
+        d: Direction::Still,
+    };
 
     // Hide cursor
     curs_set(0);
@@ -22,22 +33,28 @@ fn main() {
 
     loop {
         win.mvaddch(snake.y, snake.x, '@');
-        win.refresh();
-        thread::sleep(time::Duration::from_millis(10));
+        thread::sleep(time::Duration::from_millis(100));
         match win.getch() {
             Some(k) => {
                 //println!("{:?}", k);
                 match k {
                     // FIXME: Arrow keys are not detected (sends three chars)
-                    Input::Character('w') => snake.y -= 1,
-                    Input::Character('a') => snake.x -= 1,
-                    Input::Character('s') => snake.y += 1,
-                    Input::Character('d') => snake.x += 1,
+                    Input::Character('w') => snake.d = Direction::Up,
+                    Input::Character('a') => snake.d = Direction::Left,
+                    Input::Character('s') => snake.d = Direction::Down,
+                    Input::Character('d') => snake.d = Direction::Right,
                     Input::Character('q') => break,
                     _ => (),
                 }
             }
             None => (),
+        }
+        match snake.d {
+            Direction::Up => snake.y -= 1,
+            Direction::Down => snake.y += 1,
+            Direction::Left => snake.x -= 1,
+            Direction::Right => snake.x += 1,
+            Direction::Still => (),
         }
     }
     endwin();
