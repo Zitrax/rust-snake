@@ -5,3 +5,4 @@ authors = ["daniel@bengtssons.info"]
 
 [dependencies]
 pancurses = "0.8"
+rand = "0.3"
