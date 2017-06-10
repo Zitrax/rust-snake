@@ -26,6 +26,14 @@ struct Snake {
 
 fn main() {
     let win = initscr();
+    start_color();
+    use_default_colors();
+
+    // Colors
+    init_pair(1, COLOR_GREEN, COLOR_BLACK);
+    init_pair(2, COLOR_RED, COLOR_BLACK);
+
+    win.attrset(ColorPair(1));
     win.nodelay(true); // Makes getch() non-blocking
 
     let mut snake = Snake {
@@ -40,9 +48,8 @@ fn main() {
     noecho();
 
     loop {
-        for pos in snake.p.iter() {
-            win.mvaddch(pos.y, pos.x, '@');
-        }
+        let head = snake.p.front().unwrap().clone();
+        win.mvaddch(head.y, head.x, '@');
 
         thread::sleep(time::Duration::from_millis(50));
         match win.getch() {
@@ -59,7 +66,6 @@ fn main() {
             }
             None => (),
         }
-        let head = snake.p.front().unwrap().clone();
         match snake.d {
             Direction::Up => snake.p.push_front(Pos{x: head.x, y: head.y-1}),
             Direction::Down => snake.p.push_front(Pos{x: head.x, y: head.y+1}),
@@ -70,6 +76,18 @@ fn main() {
         if snake.p.len() > snake.l {
             let back = snake.p.pop_back().unwrap();
             win.mvaddch(back.y, back.x, ' ');
+        }
+
+        // Collision check
+        let max = win.get_max_yx();
+        let new_head = snake.p.front().unwrap().clone();
+        if new_head.y < 0 || new_head.x < 0 || new_head.y > max.0 || new_head.x > max.1 {
+            snake.d = Direction::Still;
+            win.attrset(ColorPair(2));
+            for p in snake.p.iter() {
+                win.mvaddch(p.y, p.x, 'X');
+            }
+            win.attrset(ColorPair(1));
         }
     }
     endwin();
