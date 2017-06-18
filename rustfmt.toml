@@ -1,0 +1,3 @@
+# The default is 18 but breaks up some match arms
+# into an ugly mess.
+struct_lit_width = 30

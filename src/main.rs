@@ -24,11 +24,10 @@ struct Pos {
 struct Snake {
     p: VecDeque<Pos>,
     d: Direction,
-    l: usize
+    l: usize,
 }
 
 impl Snake {
-
     // Set new direction if allowed
     fn set_dir(&mut self, dir: Direction) {
         match dir {
@@ -36,23 +35,23 @@ impl Snake {
                 if self.d != Direction::Down {
                     self.d = dir;
                 }
-            },
+            }
             Direction::Down => {
                 if self.d != Direction::Up {
                     self.d = dir;
                 }
-            },
+            }
             Direction::Left => {
                 if self.d != Direction::Right {
                     self.d = dir;
                 }
-            },
+            }
             Direction::Right => {
                 if self.d != Direction::Left {
                     self.d = dir;
                 }
             }
-            Direction::Still => self.d = dir
+            Direction::Still => self.d = dir,
         }
     }
 
@@ -73,18 +72,17 @@ impl Snake {
     fn mv(&mut self, win: &Window) {
         let head = self.p.front().unwrap().clone();
         match self.d {
-            Direction::Up => self.p.push_front(Pos{x: head.x, y: head.y-1}),
-            Direction::Down => self.p.push_front(Pos{x: head.x, y: head.y+1}),
-            Direction::Left => self.p.push_front(Pos{x: head.x-1, y: head.y}),
-            Direction::Right => self.p.push_front(Pos{x: head.x+1, y: head.y}),
-            Direction::Still => ()
+            Direction::Up => self.p.push_front(Pos { x: head.x, y: head.y - 1 }),
+            Direction::Down => self.p.push_front(Pos { x: head.x, y: head.y + 1 }),
+            Direction::Left => self.p.push_front(Pos { x: head.x - 1, y: head.y }),
+            Direction::Right => self.p.push_front(Pos { x: head.x + 1, y: head.y }),
+            Direction::Still => (),
         }
         if self.p.len() > self.l {
             let back = self.p.pop_back().unwrap();
             win.mvaddch(back.y, back.x, ' ');
         }
     }
-
 }
 
 fn main() {
@@ -103,9 +101,9 @@ fn main() {
     let mut snake = Snake {
         p: VecDeque::new(),
         d: Direction::Still,
-        l: 3
+        l: 3,
     };
-    snake.p.push_front(Pos { x: max.1/2, y: max.0/2 });
+    snake.p.push_front(Pos { x: max.1 / 2, y: max.0 / 2 });
 
     // Hide cursor
     curs_set(0);
@@ -119,7 +117,7 @@ fn main() {
     for _ in 0..5 {
         let y = Range::new(0, max.0).ind_sample(&mut rng);
         let x = Range::new(0, max.1).ind_sample(&mut rng);
-        fruits.push(Pos{x: x, y: y});
+        fruits.push(Pos { x: x, y: y });
         win.mvaddch(y, x, fruitsymbol);
     }
     win.attrset(ColorPair(1));
@@ -134,7 +132,7 @@ fn main() {
             Some(k) => {
                 match k {
                     Input::Character('q') => break,
-                    _ => snake.set_dir_from_input(k)
+                    _ => snake.set_dir_from_input(k),
                 }
             }
             None => (),
@@ -168,11 +166,10 @@ fn main() {
                 let mut rng = rand::thread_rng();
                 let y = Range::new(0, max.0).ind_sample(&mut rng);
                 let x = Range::new(0, max.1).ind_sample(&mut rng);
-                fruits.push(Pos{x: x, y: y});
-                win.mvaddch(y, x, fruitsymbol
-                );
+                fruits.push(Pos { x: x, y: y });
+                win.mvaddch(y, x, fruitsymbol);
                 win.attrset(ColorPair(1));
-            },
+            }
             None => {}
         }
     }
