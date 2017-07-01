@@ -3,6 +3,7 @@ extern crate rand;
 
 use pancurses::*;
 use rand::distributions::{IndependentSample, Range};
+use rand::Rng;
 use std::{thread, time};
 use std::collections::VecDeque;
 
@@ -13,6 +14,13 @@ enum Direction {
     Up,
     Down,
     Still,
+}
+
+impl rand::Rand for Direction {
+    fn rand<R: rand::Rng>(rng: &mut R) -> Self {
+        static ALL: [Direction; 4] = [Direction::Left, Direction::Right, Direction::Up, Direction::Down];
+        return rng.choose(&ALL).unwrap().clone();
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -29,6 +37,10 @@ struct Snake {
 }
 
 impl Snake {
+    fn head(&mut self) -> Pos {
+        return self.p.front().unwrap().clone();
+    }
+
     // Set new direction if allowed
     fn set_dir(&mut self, dir: Direction) {
         match dir {
@@ -75,7 +87,7 @@ impl Snake {
     // Move snake according to direction
     fn mv(&mut self, win: &Window) {
         win.attrset(ColorPair(self.c));
-        let head = self.p.front().unwrap().clone();
+        let head = self.head();
         win.mvaddch(head.y, head.x, '@');
         match self.d {
             Direction::Up => self.p.push_front(Pos { x: head.x, y: head.y - 1 }),
@@ -93,8 +105,8 @@ impl Snake {
     // Collision checks
     fn collision(&mut self, win: &Window, fruits: &mut Vec<Pos>, fruitsymbol: char) {
         let max = win.get_max_yx();
-        let new_head = self.p.front().unwrap().clone();
-        if new_head.y < 0 || new_head.x < 0 || new_head.y > max.0 || new_head.x > max.1 {
+        let head = self.head();
+        if head.y < 0 || head.x < 0 || head.y > max.0 || head.x > max.1 {
             self.d = Direction::Still;
             win.attrset(ColorPair(2));
             for p in self.p.iter() {
@@ -103,7 +115,7 @@ impl Snake {
         }
         let mut eaten = None;
         for (i, fruit) in fruits.iter().enumerate() {
-            if *fruit == new_head {
+            if *fruit == head {
                 self.l += 2;
                 eaten = Some(i);
                 break;
@@ -122,6 +134,15 @@ impl Snake {
                 win.mvaddch(y, x, fruitsymbol);
             }
             None => {}
+        }
+    }
+
+    fn ai_dir(&mut self) {
+        if self.d != Direction::Still {
+            let head = self.head();
+            if rand::thread_rng().gen_weighted_bool(10) {
+                self.set_dir(rand::random::<Direction>());
+            }
         }
     }
 }
@@ -148,6 +169,14 @@ fn main() {
     };
     snake.p.push_front(Pos { x: max.1 / 2, y: max.0 / 2 });
 
+    let mut bad_snake = Snake {
+        p: VecDeque::new(),
+        d: Direction::Right,
+        l: 3,
+        c: 2
+    };
+    bad_snake.p.push_front(Pos { x: 10, y: 10 });
+
     // Hide cursor
     curs_set(0);
     noecho();
@@ -157,7 +186,7 @@ fn main() {
     let mut fruits = Vec::new();
     win.attrset(ColorPair(3));
     let mut rng = rand::thread_rng();
-    for _ in 0..5 {
+    for _ in 0..50 {
         let y = Range::new(0, max.0).ind_sample(&mut rng);
         let x = Range::new(0, max.1).ind_sample(&mut rng);
         fruits.push(Pos { x: x, y: y });
@@ -175,6 +204,9 @@ fn main() {
             }
             None => (),
         }
+        bad_snake.ai_dir();
+        bad_snake.mv(&win);
+        bad_snake.collision(&win, &mut fruits, fruitsymbol);
         snake.mv(&win);
         snake.collision(&win, &mut fruits, fruitsymbol);
         thread::sleep(time::Duration::from_millis(100));
