@@ -58,7 +58,10 @@ impl Snake {
     // Reads keyboard input and update snake direction
     fn set_dir_from_input(&mut self, k: Input) {
         match k {
-            // FIXME: Arrow keys are not detected (sends three chars)
+            Input::KeyUp => self.set_dir(Direction::Up),
+            Input::KeyLeft => self.set_dir(Direction::Left),
+            Input::KeyDown => self.set_dir(Direction::Down),
+            Input::KeyRight => self.set_dir(Direction::Right),
             Input::Character('w') => self.set_dir(Direction::Up),
             Input::Character('a') => self.set_dir(Direction::Left),
             Input::Character('s') => self.set_dir(Direction::Down),
@@ -96,6 +99,7 @@ fn main() {
     init_pair(3, COLOR_YELLOW, COLOR_BLACK);
 
     win.nodelay(true); // Makes getch() non-blocking
+    win.keypad(true);  // Return special keys as single keys (like arrow keys)
     let max = win.get_max_yx();
 
     let mut snake = Snake {
