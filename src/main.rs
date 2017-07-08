@@ -18,7 +18,10 @@ enum Direction {
 
 impl rand::Rand for Direction {
     fn rand<R: rand::Rng>(rng: &mut R) -> Self {
-        static ALL: [Direction; 4] = [Direction::Left, Direction::Right, Direction::Up, Direction::Down];
+        static ALL: [Direction; 4] = [Direction::Left,
+                                      Direction::Right,
+                                      Direction::Up,
+                                      Direction::Down];
         return rng.choose(&ALL).unwrap().clone();
     }
 }
@@ -32,8 +35,8 @@ struct Pos {
 struct Snake {
     p: VecDeque<Pos>, // positions
     d: Direction,
-    l: usize,         // length
-    c: u8             // color id
+    l: usize, // length
+    c: u8, // color id
 }
 
 impl Snake {
@@ -137,10 +140,25 @@ impl Snake {
         }
     }
 
-    fn ai_dir(&mut self) {
+    fn ai_dir(&mut self, win: &Window) {
         if self.d != Direction::Still {
+            let max = win.get_max_yx();
             let head = self.head();
+            let mut forbidden = VecDeque::new();
+            if head.x == 0 {
+                forbidden.push_back(Direction::Left);
+            } else if head.x == max.1 - 1 {
+                forbidden.push_back(Direction::Right);
+            }
+            if head.y == 0 {
+                forbidden.push_back(Direction::Up);
+            } else if head.y == max.0 - 1 {
+                forbidden.push_back(Direction::Down);
+            }
             if rand::thread_rng().gen_weighted_bool(10) {
+                self.set_dir(rand::random::<Direction>());
+            }
+            while forbidden.contains(&self.d) {
                 self.set_dir(rand::random::<Direction>());
             }
         }
@@ -158,14 +176,14 @@ fn main() {
     init_pair(3, COLOR_YELLOW, COLOR_BLACK);
 
     win.nodelay(true); // Makes getch() non-blocking
-    win.keypad(true);  // Return special keys as single keys (like arrow keys)
+    win.keypad(true); // Return special keys as single keys (like arrow keys)
     let max = win.get_max_yx();
 
     let mut snake = Snake {
         p: VecDeque::new(),
         d: Direction::Still,
         l: 3,
-        c: 1
+        c: 1,
     };
     snake.p.push_front(Pos { x: max.1 / 2, y: max.0 / 2 });
 
@@ -173,7 +191,7 @@ fn main() {
         p: VecDeque::new(),
         d: Direction::Right,
         l: 3,
-        c: 2
+        c: 2,
     };
     bad_snake.p.push_front(Pos { x: 10, y: 10 });
 
@@ -204,7 +222,7 @@ fn main() {
             }
             None => (),
         }
-        bad_snake.ai_dir();
+        bad_snake.ai_dir(&win);
         bad_snake.mv(&win);
         bad_snake.collision(&win, &mut fruits, fruitsymbol);
         snake.mv(&win);
