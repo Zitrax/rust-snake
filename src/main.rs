@@ -128,13 +128,18 @@ impl Snake {
             Some(i) => {
                 let _ = fruits.remove(i);
                 // Add new fruits
-                // TODO: Make sure it's in an empty spot
                 win.attrset(ColorPair(3));
                 let mut rng = rand::thread_rng();
-                let y = Range::new(0, max.0).ind_sample(&mut rng);
-                let x = Range::new(0, max.1).ind_sample(&mut rng);
-                fruits.push(Pos { x: x, y: y });
-                win.mvaddch(y, x, fruitsymbol);
+                loop {
+                    let y = Range::new(0, max.0).ind_sample(&mut rng);
+                    let x = Range::new(0, max.1).ind_sample(&mut rng);
+                    let pos = Pos {x, y};
+                    if !fruits.contains(&pos) {
+                        fruits.push(pos);
+                        win.mvaddch(y, x, fruitsymbol);
+                        break;
+                    }
+                }
             }
             None => {}
         }
