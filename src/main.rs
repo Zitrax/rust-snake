@@ -32,11 +32,14 @@ struct Pos {
     y: i32,
 }
 
+#[derive(Clone)]
 struct Snake {
+    id: u8, // unique id
     p: VecDeque<Pos>, // positions
     d: Direction,
     l: usize, // length
     c: u8, // color id
+    a: bool // ai
 }
 
 impl Snake {
@@ -106,7 +109,10 @@ impl Snake {
     }
 
     // Collision checks
-    fn collision(&mut self, win: &Window, fruits: &mut Vec<Pos>, fruitsymbol: char) {
+    fn collision(&mut self, win: &Window,
+                 fruits: &mut Vec<Pos>,
+                 fruitsymbol: char,
+                 snakes: &Vec<Snake>) {
         let max = win.get_max_yx();
         let head = self.head();
         if head.y < 0 || head.x < 0 || head.y > max.0 || head.x > max.1 {
@@ -116,6 +122,19 @@ impl Snake {
                 win.mvaddch(p.y, p.x, 'X');
             }
         }
+
+        for snake in snakes.iter() {
+            if snake.id == self.id {
+                 continue;
+            }
+            if snake.p.contains(&self.p[0]) {
+                self.d = Direction::Still;
+                for p in self.p.iter() {
+                    win.mvaddch(p.y, p.x, 'X');
+                }
+            }
+        }
+
         let mut eaten = None;
         for (i, fruit) in fruits.iter().enumerate() {
             if *fruit == head {
@@ -150,8 +169,8 @@ impl Snake {
         win.mvaddstr(offset, 0, &format!("Length: {}", self.l));
     }
 
-    fn ai_dir(&mut self, win: &Window) {
-        if self.d != Direction::Still {
+    fn input_dir(&mut self, win: &Window, key: Option<Input>) -> bool {
+        if self.d != Direction::Still && self.a {
             let max = win.get_max_yx();
             let head = self.head();
             let mut forbidden = VecDeque::new();
@@ -171,7 +190,19 @@ impl Snake {
             while forbidden.contains(&self.d) {
                 self.set_dir(rand::random::<Direction>());
             }
+        } else if !self.a {
+            // Read key and take action
+            match key {
+                Some(k) => {
+                    match k {
+                        Input::Character('q') => return false,
+                        _ => self.set_dir_from_input(k),
+                    }
+                }
+                None => (),
+            }
         }
+        return true;
     }
 }
 
@@ -184,26 +215,65 @@ fn main() {
     init_pair(1, COLOR_GREEN, COLOR_BLACK);
     init_pair(2, COLOR_RED, COLOR_BLACK);
     init_pair(3, COLOR_YELLOW, COLOR_BLACK);
+    init_pair(4, COLOR_BLUE, COLOR_BLACK);
+    init_pair(5, COLOR_WHITE, COLOR_BLACK);
+    init_pair(6, COLOR_CYAN, COLOR_BLACK);
 
     win.nodelay(true); // Makes getch() non-blocking
     win.keypad(true); // Return special keys as single keys (like arrow keys)
     let max = win.get_max_yx();
 
     let mut snake = Snake {
+        id: 1,  // TODO: Autogenerate this
         p: VecDeque::new(),
         d: Direction::Still,
         l: 3,
         c: 1,
+        a: false
     };
     snake.p.push_front(Pos { x: max.1 / 2, y: max.0 / 2 });
 
     let mut bad_snake = Snake {
+        id: 2,
         p: VecDeque::new(),
         d: Direction::Right,
         l: 3,
         c: 2,
+        a: true
     };
     bad_snake.p.push_front(Pos { x: 10, y: 10 });
+
+    let mut bad_snake2 = Snake {
+        id: 3,
+        p: VecDeque::new(),
+        d: Direction::Right,
+        l: 3,
+        c: 4,
+        a: true
+    };
+    bad_snake2.p.push_front(Pos { x: 30, y: 30 });
+
+    let mut bad_snake3 = Snake {
+        id: 4,
+        p: VecDeque::new(),
+        d: Direction::Right,
+        l: 3,
+        c: 5,
+        a: true
+    };
+    bad_snake3.p.push_front(Pos { x: 50, y: 50 });
+
+    let mut bad_snake4 = Snake {
+        id: 5,
+        p: VecDeque::new(),
+        d: Direction::Right,
+        l: 3,
+        c: 6,
+        a: true
+    };
+    bad_snake4.p.push_front(Pos { x: 70, y: 50 });
+
+    let mut snakes = vec![snake, bad_snake, bad_snake2, bad_snake3, bad_snake4];
 
     // Hide cursor
     curs_set(0);
@@ -214,7 +284,7 @@ fn main() {
     let mut fruits = Vec::new();
     win.attrset(ColorPair(3));
     let mut rng = rand::thread_rng();
-    for _ in 0..50 {
+    for _ in 0..3000 {
         let y = Range::new(0, max.0).ind_sample(&mut rng);
         let x = Range::new(0, max.1).ind_sample(&mut rng);
         fruits.push(Pos { x: x, y: y });
@@ -222,24 +292,25 @@ fn main() {
     }
 
     loop {
-        // Read key and take action
-        match win.getch() {
-            Some(k) => {
-                match k {
-                    Input::Character('q') => break,
-                    _ => snake.set_dir_from_input(k),
-                }
+        let mut done = false;
+        // FIXME: Find a better way to avoid the ownership issues other than
+        //        copying the whole snake vector. Performance issue.
+        let snakes_copy = snakes.clone();
+        for (i, s) in snakes.iter_mut().enumerate() {
+            let key = win.getch();
+            if !s.input_dir(&win, key) {
+                done = true;
+                break;
             }
-            None => (),
+            s.mv(&win);
+            s.collision(&win, &mut fruits, fruitsymbol, &snakes_copy);
+            s.length(&win, i as i32);
         }
-        bad_snake.ai_dir(&win);
-        bad_snake.mv(&win);
-        bad_snake.collision(&win, &mut fruits, fruitsymbol);
-        bad_snake.length(&win, 1);
-        snake.mv(&win);
-        snake.collision(&win, &mut fruits, fruitsymbol);
-        snake.length(&win, 0);
-        thread::sleep(time::Duration::from_millis(100));
+        if done {
+            break;
+        }
+
+        thread::sleep(time::Duration::from_millis(50));
     }
     endwin();
 }
