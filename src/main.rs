@@ -145,6 +145,11 @@ impl Snake {
         }
     }
 
+    fn length(&mut self, win: &Window, offset: i32) {
+        win.attrset(ColorPair(self.c));
+        win.mvaddstr(offset, 0, &format!("Length: {}", self.l));
+    }
+
     fn ai_dir(&mut self, win: &Window) {
         if self.d != Direction::Still {
             let max = win.get_max_yx();
@@ -230,8 +235,10 @@ fn main() {
         bad_snake.ai_dir(&win);
         bad_snake.mv(&win);
         bad_snake.collision(&win, &mut fruits, fruitsymbol);
+        bad_snake.length(&win, 1);
         snake.mv(&win);
         snake.collision(&win, &mut fruits, fruitsymbol);
+        snake.length(&win, 0);
         thread::sleep(time::Duration::from_millis(100));
     }
     endwin();
