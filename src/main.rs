@@ -112,7 +112,7 @@ impl Snake {
     fn collision(&mut self, win: &Window,
                  fruits: &mut Vec<Pos>,
                  fruitsymbol: char,
-                 snakes: &Vec<Snake>) {
+                 snakes: &mut Vec<Snake>) {
         let max = win.get_max_yx();
         let head = self.head();
         if head.y < 0 || head.x < 0 || head.y > max.0 || head.x > max.1 {
@@ -123,11 +123,17 @@ impl Snake {
             }
         }
 
-        for snake in snakes.iter() {
+        for snake in snakes.iter_mut() {
             if snake.id == self.id {
-                 continue;
+                snake.p.pop_front(); // Can remove head since we work on a copy
+                if snake.p.contains(&self.p[0]) {
+                    self.d = Direction::Still;
+                    for p in self.p.iter() {
+                        win.mvaddch(p.y, p.x, 'X');
+                    }
+                }
             }
-            if snake.p.contains(&self.p[0]) {
+            else if snake.p.contains(&self.p[0]) {
                 self.d = Direction::Still;
                 for p in self.p.iter() {
                     win.mvaddch(p.y, p.x, 'X');
@@ -284,7 +290,7 @@ fn main() {
     let mut fruits = Vec::new();
     win.attrset(ColorPair(3));
     let mut rng = rand::thread_rng();
-    for _ in 0..3000 {
+    for _ in 0..50 {
         let y = Range::new(0, max.0).ind_sample(&mut rng);
         let x = Range::new(0, max.1).ind_sample(&mut rng);
         fruits.push(Pos { x: x, y: y });
@@ -295,22 +301,25 @@ fn main() {
         let mut done = false;
         // FIXME: Find a better way to avoid the ownership issues other than
         //        copying the whole snake vector. Performance issue.
-        let snakes_copy = snakes.clone();
+        let mut snakes_copy = snakes.clone();
         for (i, s) in snakes.iter_mut().enumerate() {
+
+            // FIXME: Multiple presses within one loop are ignored.
             let key = win.getch();
+
             if !s.input_dir(&win, key) {
                 done = true;
                 break;
             }
             s.mv(&win);
-            s.collision(&win, &mut fruits, fruitsymbol, &snakes_copy);
+            s.collision(&win, &mut fruits, fruitsymbol, &mut snakes_copy);
             s.length(&win, i as i32);
         }
         if done {
             break;
         }
 
-        thread::sleep(time::Duration::from_millis(50));
+        thread::sleep(time::Duration::from_millis(70));
     }
     endwin();
 }
