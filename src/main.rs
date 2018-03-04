@@ -42,6 +42,7 @@ struct Snake {
     l: usize,         // length
     c: u8,            // color id
     a: bool,          // ai
+    dead: bool,
 }
 
 impl Snake {
@@ -144,12 +145,14 @@ impl Snake {
                 snake.p.pop_front(); // Can remove head since we work on a copy
                 if snake.p.contains(&self.p[0]) {
                     self.d = Direction::Still;
+                    win.attrset(ColorPair(2));
                     for p in self.p.iter() {
                         win.mvaddch(p.y, p.x, 'X');
                     }
                 }
             } else if snake.p.contains(&self.p[0]) {
                 self.d = Direction::Still;
+                win.attrset(ColorPair(2));
                 for p in self.p.iter() {
                     win.mvaddch(p.y, p.x, 'X');
                 }
@@ -237,65 +240,54 @@ fn main() {
     init_pair(4, COLOR_BLUE, COLOR_BLACK);
     init_pair(5, COLOR_WHITE, COLOR_BLACK);
     init_pair(6, COLOR_CYAN, COLOR_BLACK);
+    init_pair(7, COLOR_MAGENTA, COLOR_BLACK);
 
     win.nodelay(true); // Makes getch() non-blocking
     win.keypad(true); // Return special keys as single keys (like arrow keys)
     let max = win.get_max_yx();
 
-    let mut snake = Snake {
-        id: 1, // TODO: Autogenerate this
-        p: VecDeque::new(),
-        d: Direction::Still,
-        l: 3,
-        c: 1,
-        a: false,
-    };
-    snake.p.push_front(Pos {
-        x: max.1 / 2,
-        y: max.0 / 2,
-    });
+    let mut snakes = Vec::new();
 
-    let mut bad_snake = Snake {
-        id: 2,
-        p: VecDeque::new(),
-        d: Direction::Right,
-        l: 3,
-        c: 2,
-        a: true,
-    };
-    bad_snake.p.push_front(Pos { x: 10, y: 10 });
+    // Human snake
+    let human_snake = true;
 
-    let mut bad_snake2 = Snake {
-        id: 3,
-        p: VecDeque::new(),
-        d: Direction::Right,
-        l: 3,
-        c: 4,
-        a: true,
-    };
-    bad_snake2.p.push_front(Pos { x: 30, y: 30 });
+    if human_snake {
+        let mut snake = Snake {
+            id: 1,
+            p: VecDeque::new(),
+            d: Direction::Still,
+            l: 3,
+            c: 1,
+            a: false,
+            dead: false,
+        };
+        snake.p.push_front(Pos {
+            x: max.1 / 2,
+            y: max.0 / 2,
+        });
+        snakes.push(snake);
+    }
 
-    let mut bad_snake3 = Snake {
-        id: 4,
-        p: VecDeque::new(),
-        d: Direction::Right,
-        l: 3,
-        c: 5,
-        a: true,
-    };
-    bad_snake3.p.push_front(Pos { x: 50, y: 50 });
+    // AI snakes
+    let ai_snakes_count = 4;
+    let mut rng = rand::thread_rng();
 
-    let mut bad_snake4 = Snake {
-        id: 5,
-        p: VecDeque::new(),
-        d: Direction::Right,
-        l: 3,
-        c: 6,
-        a: true,
-    };
-    bad_snake4.p.push_front(Pos { x: 70, y: 50 });
-
-    let mut snakes = vec![snake, bad_snake, bad_snake2, bad_snake3, bad_snake4];
+    for i in 0..ai_snakes_count {
+        let mut bad_snake = Snake {
+            id: 1 + i,
+            p: VecDeque::new(),
+            d: rand::random::<Direction>(),
+            l: 3,
+            c: (i % 6) + 2,
+            a: true,
+            dead: false,
+        };
+        bad_snake.p.push_front(Pos {
+            x: Range::new(0, max.1).ind_sample(&mut rng),
+            y: Range::new(0, max.0).ind_sample(&mut rng),
+        });
+        snakes.push(bad_snake);
+    }
 
     // Hide cursor
     curs_set(0);
@@ -305,7 +297,6 @@ fn main() {
     let fruitsymbol = '#';
     let mut fruits = Vec::new();
     win.attrset(ColorPair(3));
-    let mut rng = rand::thread_rng();
     for _ in 0..50 {
         let y = Range::new(0, max.0).ind_sample(&mut rng);
         let x = Range::new(0, max.1).ind_sample(&mut rng);
