@@ -18,10 +18,12 @@ enum Direction {
 
 impl rand::Rand for Direction {
     fn rand<R: rand::Rng>(rng: &mut R) -> Self {
-        static ALL: [Direction; 4] = [Direction::Left,
-                                      Direction::Right,
-                                      Direction::Up,
-                                      Direction::Down];
+        static ALL: [Direction; 4] = [
+            Direction::Left,
+            Direction::Right,
+            Direction::Up,
+            Direction::Down,
+        ];
         return rng.choose(&ALL).unwrap().clone();
     }
 }
@@ -34,12 +36,12 @@ struct Pos {
 
 #[derive(Clone)]
 struct Snake {
-    id: u8, // unique id
+    id: u8,           // unique id
     p: VecDeque<Pos>, // positions
-    d: Direction,
-    l: usize, // length
-    c: u8, // color id
-    a: bool // ai
+    d: Direction,     // current movement direction
+    l: usize,         // length
+    c: u8,            // color id
+    a: bool,          // ai
 }
 
 impl Snake {
@@ -89,17 +91,28 @@ impl Snake {
         }
     }
 
-
     // Move snake according to direction
     fn mv(&mut self, win: &Window) {
         win.attrset(ColorPair(self.c));
         let head = self.head();
         win.mvaddch(head.y, head.x, '@');
         match self.d {
-            Direction::Up => self.p.push_front(Pos { x: head.x, y: head.y - 1 }),
-            Direction::Down => self.p.push_front(Pos { x: head.x, y: head.y + 1 }),
-            Direction::Left => self.p.push_front(Pos { x: head.x - 1, y: head.y }),
-            Direction::Right => self.p.push_front(Pos { x: head.x + 1, y: head.y }),
+            Direction::Up => self.p.push_front(Pos {
+                x: head.x,
+                y: head.y - 1,
+            }),
+            Direction::Down => self.p.push_front(Pos {
+                x: head.x,
+                y: head.y + 1,
+            }),
+            Direction::Left => self.p.push_front(Pos {
+                x: head.x - 1,
+                y: head.y,
+            }),
+            Direction::Right => self.p.push_front(Pos {
+                x: head.x + 1,
+                y: head.y,
+            }),
             Direction::Still => (),
         }
         if self.p.len() > self.l {
@@ -109,10 +122,13 @@ impl Snake {
     }
 
     // Collision checks
-    fn collision(&mut self, win: &Window,
-                 fruits: &mut Vec<Pos>,
-                 fruitsymbol: char,
-                 snakes: &mut Vec<Snake>) {
+    fn collision(
+        &mut self,
+        win: &Window,
+        fruits: &mut Vec<Pos>,
+        fruitsymbol: char,
+        snakes: &mut Vec<Snake>,
+    ) {
         let max = win.get_max_yx();
         let head = self.head();
         if head.y < 0 || head.x < 0 || head.y > max.0 || head.x > max.1 {
@@ -132,8 +148,7 @@ impl Snake {
                         win.mvaddch(p.y, p.x, 'X');
                     }
                 }
-            }
-            else if snake.p.contains(&self.p[0]) {
+            } else if snake.p.contains(&self.p[0]) {
                 self.d = Direction::Still;
                 for p in self.p.iter() {
                     win.mvaddch(p.y, p.x, 'X');
@@ -158,7 +173,7 @@ impl Snake {
                 loop {
                     let y = Range::new(0, max.0).ind_sample(&mut rng);
                     let x = Range::new(0, max.1).ind_sample(&mut rng);
-                    let pos = Pos {x, y};
+                    let pos = Pos { x, y };
                     if !fruits.contains(&pos) {
                         fruits.push(pos);
                         win.mvaddch(y, x, fruitsymbol);
@@ -199,12 +214,10 @@ impl Snake {
         } else if !self.a {
             // Read key and take action
             match key {
-                Some(k) => {
-                    match k {
-                        Input::Character('q') => return false,
-                        _ => self.set_dir_from_input(k),
-                    }
-                }
+                Some(k) => match k {
+                    Input::Character('q') => return false,
+                    _ => self.set_dir_from_input(k),
+                },
                 None => (),
             }
         }
@@ -230,14 +243,17 @@ fn main() {
     let max = win.get_max_yx();
 
     let mut snake = Snake {
-        id: 1,  // TODO: Autogenerate this
+        id: 1, // TODO: Autogenerate this
         p: VecDeque::new(),
         d: Direction::Still,
         l: 3,
         c: 1,
-        a: false
+        a: false,
     };
-    snake.p.push_front(Pos { x: max.1 / 2, y: max.0 / 2 });
+    snake.p.push_front(Pos {
+        x: max.1 / 2,
+        y: max.0 / 2,
+    });
 
     let mut bad_snake = Snake {
         id: 2,
@@ -245,7 +261,7 @@ fn main() {
         d: Direction::Right,
         l: 3,
         c: 2,
-        a: true
+        a: true,
     };
     bad_snake.p.push_front(Pos { x: 10, y: 10 });
 
@@ -255,7 +271,7 @@ fn main() {
         d: Direction::Right,
         l: 3,
         c: 4,
-        a: true
+        a: true,
     };
     bad_snake2.p.push_front(Pos { x: 30, y: 30 });
 
@@ -265,7 +281,7 @@ fn main() {
         d: Direction::Right,
         l: 3,
         c: 5,
-        a: true
+        a: true,
     };
     bad_snake3.p.push_front(Pos { x: 50, y: 50 });
 
@@ -275,7 +291,7 @@ fn main() {
         d: Direction::Right,
         l: 3,
         c: 6,
-        a: true
+        a: true,
     };
     bad_snake4.p.push_front(Pos { x: 70, y: 50 });
 
@@ -303,7 +319,6 @@ fn main() {
         //        copying the whole snake vector. Performance issue.
         let mut snakes_copy = snakes.clone();
         for (i, s) in snakes.iter_mut().enumerate() {
-
             // FIXME: Multiple presses within one loop are ignored.
             let key = win.getch();
 

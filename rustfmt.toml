@@ -1,3 +1,4 @@
 # The default is 18 but breaks up some match arms
 # into an ugly mess.
-struct_lit_width = 30
+# NOTE: rustfmt changed and this setting does not exist now
+# struct_lit_width = 30
