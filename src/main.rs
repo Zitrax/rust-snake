@@ -129,6 +129,16 @@ impl<'s> Snake<'s> {
         }
     }
 
+    /// Snake is dead, stop and visualize
+    fn die(&mut self, win: &Window) {
+        self.d = Direction::Still;
+        self.dead = true;
+        win.attrset(ColorPair(2));
+        for p in self.p.iter() {
+            win.mvaddch(p.y, p.x, 'X');
+        }
+    }
+
     // Collision checks
     fn collision(
         &mut self,
@@ -140,29 +150,17 @@ impl<'s> Snake<'s> {
         let max = win.get_max_yx();
         let head = self.head();
         if head.y < 0 || head.x < 0 || head.y > max.0 || head.x > max.1 {
-            self.d = Direction::Still;
-            win.attrset(ColorPair(2));
-            for p in self.p.iter() {
-                win.mvaddch(p.y, p.x, 'X');
-            }
+            self.die(win);
         }
 
         for snake in snakes.iter_mut() {
             if snake.id == self.id {
                 snake.p.pop_front(); // Can remove head since we work on a copy
                 if snake.p.contains(&self.p[0]) {
-                    self.d = Direction::Still;
-                    win.attrset(ColorPair(2));
-                    for p in self.p.iter() {
-                        win.mvaddch(p.y, p.x, 'X');
-                    }
+                    self.die(win);
                 }
             } else if snake.p.contains(&self.p[0]) {
-                self.d = Direction::Still;
-                win.attrset(ColorPair(2));
-                for p in self.p.iter() {
-                    win.mvaddch(p.y, p.x, 'X');
-                }
+                self.die(win);
             }
         }
 
@@ -228,11 +226,13 @@ fn random_ai(snake: &mut Snake, win: &Window, _key: Option<Input>) {
 
 /// Manual input by a human using keypresses
 fn human(snake: &mut Snake, _win: &Window, key: Option<Input>) {
-    match key {
-        Some(k) => match k {
-            _ => snake.set_dir_from_input(k),
-        },
-        None => (),
+    if !snake.dead {
+        match key {
+            Some(k) => match k {
+                _ => snake.set_dir_from_input(k),
+            },
+            None => (),
+        }
     }
 }
 
