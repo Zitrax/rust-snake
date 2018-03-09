@@ -35,17 +35,18 @@ struct Pos {
 }
 
 #[derive(Clone)]
-struct Snake {
+struct Snake<'s> {
     id: u8,           // unique id
     p: VecDeque<Pos>, // positions
     d: Direction,     // current movement direction
     l: usize,         // length
     c: u8,            // color id
-    a: bool,          // ai
     dead: bool,
+    // Takes function that steer the Snake
+    input_handler: &'s Fn(&mut Snake, &Window, Option<Input>),
 }
 
-impl Snake {
+impl<'s> Snake<'s> {
     fn head(&mut self) -> Pos {
         return self.p.front().unwrap().clone();
     }
@@ -192,37 +193,38 @@ impl Snake {
         win.attrset(ColorPair(self.c));
         win.mvaddstr(offset, 0, &format!("Length: {}", self.l));
     }
+}
 
-    fn input_dir(&mut self, win: &Window, key: Option<Input>) {
-        if self.d != Direction::Still && self.a {
-            let max = win.get_max_yx();
-            let head = self.head();
-            let mut forbidden = VecDeque::new();
-            if head.x == 0 {
-                forbidden.push_back(Direction::Left);
-            } else if head.x == max.1 - 1 {
-                forbidden.push_back(Direction::Right);
-            }
-            if head.y == 0 {
-                forbidden.push_back(Direction::Up);
-            } else if head.y == max.0 - 1 {
-                forbidden.push_back(Direction::Down);
-            }
-            if rand::thread_rng().gen_weighted_bool(10) {
-                self.set_dir(rand::random::<Direction>());
-            }
-            while forbidden.contains(&self.d) {
-                self.set_dir(rand::random::<Direction>());
-            }
-        } else if !self.a {
-            // Read key and take action
-            match key {
-                Some(k) => match k {
-                    _ => self.set_dir_from_input(k),
-                },
-                None => (),
-            }
+fn random_ai(snake: &mut Snake, win: &Window, _key: Option<Input>) {
+    if snake.d != Direction::Still {
+        let max = win.get_max_yx();
+        let head = snake.head();
+        let mut forbidden = VecDeque::new();
+        if head.x == 0 {
+            forbidden.push_back(Direction::Left);
+        } else if head.x == max.1 - 1 {
+            forbidden.push_back(Direction::Right);
         }
+        if head.y == 0 {
+            forbidden.push_back(Direction::Up);
+        } else if head.y == max.0 - 1 {
+            forbidden.push_back(Direction::Down);
+        }
+        if rand::thread_rng().gen_weighted_bool(10) {
+            snake.set_dir(rand::random::<Direction>());
+        }
+        while forbidden.contains(&snake.d) {
+            snake.set_dir(rand::random::<Direction>());
+        }
+    }
+}
+
+fn human(snake: &mut Snake, _win: &Window, key: Option<Input>) {
+    match key {
+        Some(k) => match k {
+            _ => snake.set_dir_from_input(k),
+        },
+        None => (),
     }
 }
 
@@ -256,8 +258,8 @@ fn main() {
             d: Direction::Still,
             l: 3,
             c: 1,
-            a: false,
             dead: false,
+            input_handler: &human
         };
         snake.p.push_front(Pos {
             x: max.1 / 2,
@@ -277,8 +279,8 @@ fn main() {
             d: rand::random::<Direction>(),
             l: 3,
             c: (i % 6) + 2,
-            a: true,
             dead: false,
+            input_handler: &random_ai
         };
         bad_snake.p.push_front(Pos {
             x: Range::new(0, max.1).ind_sample(&mut rng),
@@ -316,7 +318,7 @@ fn main() {
                 break;
             }
 
-            s.input_dir(&win, key);
+            (s.input_handler)(s, &win, key);
             s.mv(&win);
             s.collision(&win, &mut fruits, fruitsymbol, &mut snakes_copy);
             s.length(&win, i as i32);
