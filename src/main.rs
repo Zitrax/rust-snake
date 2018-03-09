@@ -193,7 +193,7 @@ impl Snake {
         win.mvaddstr(offset, 0, &format!("Length: {}", self.l));
     }
 
-    fn input_dir(&mut self, win: &Window, key: Option<Input>) -> bool {
+    fn input_dir(&mut self, win: &Window, key: Option<Input>) {
         if self.d != Direction::Still && self.a {
             let max = win.get_max_yx();
             let head = self.head();
@@ -218,13 +218,11 @@ impl Snake {
             // Read key and take action
             match key {
                 Some(k) => match k {
-                    Input::Character('q') => return false,
                     _ => self.set_dir_from_input(k),
                 },
                 None => (),
             }
         }
-        return true;
     }
 }
 
@@ -313,10 +311,12 @@ fn main() {
             // FIXME: Multiple presses within one loop are ignored.
             let key = win.getch();
 
-            if !s.input_dir(&win, key) {
+            if key.is_some() && key.unwrap() == Input::Character('q') {
                 done = true;
                 break;
             }
+
+            s.input_dir(&win, key);
             s.mv(&win);
             s.collision(&win, &mut fruits, fruitsymbol, &mut snakes_copy);
             s.length(&win, i as i32);
