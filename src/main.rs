@@ -36,13 +36,19 @@ struct Pos {
 
 #[derive(Clone)]
 struct Snake<'s> {
-    id: u8,           // unique id
-    p: VecDeque<Pos>, // positions
-    d: Direction,     // current movement direction
-    l: usize,         // length
-    c: u8,            // color id
+    /// Unique ID
+    id: u8,
+    /// Snake body positions
+    p: VecDeque<Pos>,
+    /// Current movement direction
+    d: Direction,
+    /// Length
+    l: usize,
+    /// Color ID
+    c: u8,
+    /// Is the snake dead?
     dead: bool,
-    // Takes function that steer the Snake
+    /// Takes function that steer the Snake
     input_handler: &'s Fn(&mut Snake, &Window, Option<Input>),
 }
 
@@ -195,6 +201,7 @@ impl<'s> Snake<'s> {
     }
 }
 
+/// A simple AI that just moves around randomly
 fn random_ai(snake: &mut Snake, win: &Window, _key: Option<Input>) {
     if snake.d != Direction::Still {
         let max = win.get_max_yx();
@@ -219,6 +226,7 @@ fn random_ai(snake: &mut Snake, win: &Window, _key: Option<Input>) {
     }
 }
 
+/// Manual input by a human using keypresses
 fn human(snake: &mut Snake, _win: &Window, key: Option<Input>) {
     match key {
         Some(k) => match k {
