@@ -6,6 +6,9 @@ use rand::distributions::{IndependentSample, Range};
 use rand::Rng;
 use std::{thread, time};
 use std::collections::VecDeque;
+use std::collections::HashSet;
+use std::collections::HashMap;
+use std::slice::Iter;
 
 #[derive(Clone, Debug, PartialEq)]
 enum Direction {
@@ -14,6 +17,19 @@ enum Direction {
     Up,
     Down,
     Still,
+}
+
+impl Direction {
+    /// Iterator over the non still directions
+    pub fn iterator() -> Iter<'static, Direction> {
+        static DIRECTIONS: [Direction; 4] = [
+            Direction::Left,
+            Direction::Right,
+            Direction::Up,
+            Direction::Down,
+        ];
+        DIRECTIONS.into_iter()
+    }
 }
 
 impl rand::Rand for Direction {
@@ -28,10 +44,29 @@ impl rand::Rand for Direction {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Hash, Eq)]
 struct Pos {
     x: i32,
     y: i32,
+}
+
+impl Pos {
+    fn go(&mut self, d: Direction) -> &Self {
+        match d {
+            Direction::Up => self.y -= 1,
+            Direction::Down => self.y += 1,
+            Direction::Left => self.x -= 1,
+            Direction::Right => self.x += 1,
+            Direction::Still => (),
+        }
+        return self;
+    }
+
+    fn get(&self, d: Direction) -> Pos {
+        let mut pos = self.clone();
+        pos.go(d);
+        return pos;
+    }
 }
 
 #[derive(Clone)]
@@ -53,7 +88,7 @@ struct Snake<'s> {
 }
 
 impl<'s> Snake<'s> {
-    fn head(&mut self) -> Pos {
+    fn head(&self) -> Pos {
         return self.p.front().unwrap().clone();
     }
 
@@ -105,23 +140,8 @@ impl<'s> Snake<'s> {
         let head = self.head();
         win.mvaddch(head.y, head.x, '@');
         match self.d {
-            Direction::Up => self.p.push_front(Pos {
-                x: head.x,
-                y: head.y - 1,
-            }),
-            Direction::Down => self.p.push_front(Pos {
-                x: head.x,
-                y: head.y + 1,
-            }),
-            Direction::Left => self.p.push_front(Pos {
-                x: head.x - 1,
-                y: head.y,
-            }),
-            Direction::Right => self.p.push_front(Pos {
-                x: head.x + 1,
-                y: head.y,
-            }),
             Direction::Still => (),
+            _ => self.p.push_front(head.get(self.d.clone())),
         }
         if self.p.len() > self.l {
             let back = self.p.pop_back().unwrap();
@@ -197,7 +217,83 @@ impl<'s> Snake<'s> {
         win.attrset(ColorPair(self.c));
         win.mvaddstr(offset, 0, &format!("Length: {}", self.l));
     }
+
+    /// Use Lee's algorithm to find the nearest fruit
+    /// FIXME: Avoid passing snakes and fruits around?
+    fn closest_fruit(&self, win: &Window, fruits: &Vec<Pos>, snakes: &Vec<Snake>) -> Option<Pos> {
+        //print!("1 l:{} p:{:?}", d, p);
+
+        let mut visited = HashSet::new();
+        let mut to_visit = VecDeque::new();
+        let mut meta = HashMap::<Pos, Direction>::new();
+        to_visit.push_back(self.head());
+
+        while !to_visit.is_empty() {
+            let pos = to_visit.pop_front().unwrap();
+
+            if fruits.contains(&pos) {
+
+                /* Draw shortest path
+                let mut bt = Vec::<Pos>::new();
+                let mut wp = pos.clone();
+                loop {
+                    match meta.get(&wp) {
+                        Some(d) => match d {
+                            &Direction::Left => bt.push(wp.go(Direction::Right).clone()),
+                            &Direction::Right => bt.push(wp.go(Direction::Left).clone()),
+                            &Direction::Up => bt.push(wp.go(Direction::Down).clone()),
+                            &Direction::Down => bt.push(wp.go(Direction::Up).clone()),
+                            &Direction::Still => (),
+                        },
+                        None => break,
+                    }
+                }
+                for p in bt {
+                    win.mvaddch(p.y, p.x, 'T');
+                }*/
+
+                return Some(pos);
+            }
+
+            // No fruit, search further
+            for dir in Direction::iterator() {
+                let np = pos.get(dir.clone());
+
+                if visited.contains(&np) {
+                    continue;
+                }
+
+                // Out of bounds?
+                let max = win.get_max_yx();
+                if np.y < 0 || np.x < 0 || np.y > max.0 || np.x > max.1 {
+                    continue;
+                }
+
+                // Hitting a snake?
+                for snake in snakes {
+                    if snake.p.contains(&np) {
+                        continue;
+                    }
+                }
+
+                // Empty location - recurse
+                if !to_visit.contains(&np) {
+                    to_visit.push_back(np.clone());
+                    meta.insert(np.clone(), dir.clone());
+                }
+            }
+
+            visited.insert(pos);
+        }
+
+        return None;
+    }
 }
+/// Collect some data about the snake and it's surroundings
+//fn stats(&self) {
+        // Shortest fruit distances
+
+    //}
 
 /// A simple AI that just moves around randomly
 fn random_ai(snake: &mut Snake, win: &Window, _key: Option<Input>) {
@@ -261,13 +357,13 @@ fn main() {
 
     if human_snake {
         let mut snake = Snake {
-            id: 1,
+            id: 0,
             p: VecDeque::new(),
             d: Direction::Still,
             l: 3,
             c: 1,
             dead: false,
-            input_handler: &human
+            input_handler: &human,
         };
         snake.p.push_front(Pos {
             x: max.1 / 2,
@@ -288,7 +384,7 @@ fn main() {
             l: 3,
             c: (i % 6) + 2,
             dead: false,
-            input_handler: &random_ai
+            input_handler: &random_ai,
         };
         bad_snake.p.push_front(Pos {
             x: Range::new(0, max.1).ind_sample(&mut rng),
@@ -324,6 +420,22 @@ fn main() {
             if key.is_some() && key.unwrap() == Input::Character('q') {
                 done = true;
                 break;
+            }
+
+            // Closest fruit for snake
+            if s.id == 0 {
+            let cfruit = s.closest_fruit(&win, &fruits, &snakes_copy);
+            match cfruit {
+                Some(cfruit) => {
+                    win.attrset(ColorPair(3));
+                    for fruit in fruits.iter() {
+                        win.mvaddch(fruit.y, fruit.x, '#');
+                    }
+                    win.attrset(ColorPair(7));
+                    win.mvaddch(cfruit.y, cfruit.x, 'O');
+                }
+                None => (),
+            }
             }
 
             (s.input_handler)(s, &win, key);
