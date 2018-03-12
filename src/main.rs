@@ -9,6 +9,7 @@ use std::collections::VecDeque;
 use std::collections::HashSet;
 use std::collections::HashMap;
 use std::slice::Iter;
+use std::time::Instant;
 
 #[derive(Clone, Debug, PartialEq)]
 enum Direction {
@@ -232,8 +233,8 @@ impl<'s> Snake<'s> {
             let pos = to_visit.pop_front().unwrap();
 
             if fruits.contains(&pos) {
-
-                /* Draw shortest path
+                /*
+                // Draw shortest path
                 let mut bt = Vec::<Pos>::new();
                 let mut wp = pos.clone();
                 loop {
@@ -324,9 +325,7 @@ fn random_ai(snake: &mut Snake, win: &Window, _key: Option<Input>) {
 fn human(snake: &mut Snake, _win: &Window, key: Option<Input>) {
     if !snake.dead {
         match key {
-            Some(k) => match k {
-                _ => snake.set_dir_from_input(k),
-            },
+            Some(k) => snake.set_dir_from_input(k),
             None => (),
         }
     }
@@ -408,14 +407,16 @@ fn main() {
         win.mvaddch(y, x, fruitsymbol);
     }
 
+    let max_ms = 70;
+
     loop {
+        let start = Instant::now();
         let mut done = false;
         // FIXME: Find a better way to avoid the ownership issues other than
         //        copying the whole snake vector. Performance issue.
+        let key = win.getch();
         let mut snakes_copy = snakes.clone();
         for (i, s) in snakes.iter_mut().enumerate() {
-            // FIXME: Multiple presses within one loop are ignored.
-            let key = win.getch();
 
             if key.is_some() && key.unwrap() == Input::Character('q') {
                 done = true;
@@ -424,18 +425,18 @@ fn main() {
 
             // Closest fruit for snake
             if s.id == 0 {
-            let cfruit = s.closest_fruit(&win, &fruits, &snakes_copy);
-            match cfruit {
-                Some(cfruit) => {
-                    win.attrset(ColorPair(3));
-                    for fruit in fruits.iter() {
-                        win.mvaddch(fruit.y, fruit.x, '#');
+                let cfruit = s.closest_fruit(&win, &fruits, &snakes_copy);
+                match cfruit {
+                    Some(cfruit) => {
+                        win.attrset(ColorPair(3));
+                        for fruit in fruits.iter() {
+                            win.mvaddch(fruit.y, fruit.x, '#');
+                        }
+                        win.attrset(ColorPair(7));
+                        win.mvaddch(cfruit.y, cfruit.x, 'O');
                     }
-                    win.attrset(ColorPair(7));
-                    win.mvaddch(cfruit.y, cfruit.x, 'O');
+                    None => (),
                 }
-                None => (),
-            }
             }
 
             (s.input_handler)(s, &win, key);
@@ -447,7 +448,10 @@ fn main() {
             break;
         }
 
-        thread::sleep(time::Duration::from_millis(70));
+        let dur_ms = start.elapsed().subsec_nanos() / 1000000;
+        win.mvaddstr(max.0 - 1, 0, &format!("{} ms", dur_ms));
+        let dur_sleep = if dur_ms >= max_ms { 0 } else { max_ms - dur_ms } as u64;
+        thread::sleep(time::Duration::from_millis(dur_sleep));
     }
     endwin();
 }
