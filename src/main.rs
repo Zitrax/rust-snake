@@ -2,15 +2,15 @@ extern crate pancurses;
 extern crate rand;
 
 use pancurses::*;
-use rand::Rng;
-use std::{thread, time};
-use std::collections::VecDeque;
-use std::collections::HashSet;
-use std::collections::HashMap;
-use std::slice::Iter;
-use std::time::Instant;
 use rand::distributions::{Distribution, Standard};
 use rand::seq::SliceRandom;
+use rand::Rng;
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::collections::VecDeque;
+use std::slice::Iter;
+use std::time::Instant;
+use std::{thread, time};
 
 #[derive(Clone, Debug, PartialEq)]
 enum Direction {
@@ -60,13 +60,13 @@ impl Pos {
             Direction::Right => self.x += 1,
             Direction::Still => (),
         }
-        return self;
+        self
     }
 
     fn get(&self, d: Direction) -> Pos {
         let mut pos = self.clone();
         pos.go(d);
-        return pos;
+        pos
     }
 }
 
@@ -166,7 +166,7 @@ impl<'s> Snake<'s> {
         win: &Window,
         fruits: &mut Vec<Pos>,
         fruitsymbol: char,
-        snakes: &mut Vec<Snake>,
+        snakes: &mut [Snake],
     ) {
         let max = win.get_max_yx();
         let head = self.head();
@@ -193,24 +193,22 @@ impl<'s> Snake<'s> {
                 break;
             }
         }
-        match eaten {
-            Some(i) => {
-                let _ = fruits.remove(i);
-                // Add new fruits
-                win.attrset(ColorPair(3));
-                let mut rng = rand::thread_rng();
-                loop {
-                    let y = rng.gen_range(0..=max.0);
-                    let x = rng.gen_range(0..=max.1);
-                    let pos = Pos { x, y };
-                    if !fruits.contains(&pos) {
-                        fruits.push(pos);
-                        win.mvaddch(y, x, fruitsymbol);
-                        break;
-                    }
+
+        if let Some(i) = eaten {
+            let _ = fruits.remove(i);
+            // Add new fruits
+            win.attrset(ColorPair(3));
+            let mut rng = rand::thread_rng();
+            loop {
+                let y = rng.gen_range(0..=max.0);
+                let x = rng.gen_range(0..=max.1);
+                let pos = Pos { x, y };
+                if !fruits.contains(&pos) {
+                    fruits.push(pos);
+                    win.mvaddch(y, x, fruitsymbol);
+                    break;
                 }
             }
-            None => {}
         }
     }
 
@@ -221,7 +219,7 @@ impl<'s> Snake<'s> {
 
     /// Use Lee's algorithm to find the nearest fruit
     /// FIXME: Avoid passing snakes and fruits around?
-    fn closest_fruit(&self, win: &Window, fruits: &Vec<Pos>, snakes: &Vec<Snake>) -> Option<Pos> {
+    fn closest_fruit(&self, win: &Window, fruits: &[Pos], snakes: &[Snake]) -> Option<Pos> {
         //print!("1 l:{} p:{:?}", d, p);
 
         let mut visited = HashSet::new();
@@ -287,14 +285,14 @@ impl<'s> Snake<'s> {
             visited.insert(pos);
         }
 
-        return None;
+        None
     }
 }
+
 /// Collect some data about the snake and it's surroundings
 //fn stats(&self) {
-        // Shortest fruit distances
-
-    //}
+// Shortest fruit distances
+//}
 
 /// A simple AI that just moves around randomly
 fn random_ai(snake: &mut Snake, win: &Window, _key: Option<Input>) {
@@ -324,9 +322,8 @@ fn random_ai(snake: &mut Snake, win: &Window, _key: Option<Input>) {
 /// Manual input by a human using keypresses
 fn human(snake: &mut Snake, _win: &Window, key: Option<Input>) {
     if !snake.dead {
-        match key {
-            Some(k) => snake.set_dir_from_input(k),
-            None => (),
+        if let Some(k) = key {
+            snake.set_dir_from_input(k)
         }
     }
 }
@@ -403,7 +400,7 @@ fn main() {
     for _ in 0..50 {
         let y = rng.gen_range(0..=max.0);
         let x = rng.gen_range(0..=max.1);
-        fruits.push(Pos { x: x, y: y });
+        fruits.push(Pos { x, y });
         win.mvaddch(y, x, fruitsymbol);
     }
 
@@ -417,7 +414,6 @@ fn main() {
         let key = win.getch();
         let mut snakes_copy = snakes.clone();
         for (i, s) in snakes.iter_mut().enumerate() {
-
             if key.is_some() && key.unwrap() == Input::Character('q') {
                 done = true;
                 break;
@@ -426,16 +422,14 @@ fn main() {
             // Closest fruit for snake
             if s.id == 0 {
                 let cfruit = s.closest_fruit(&win, &fruits, &snakes_copy);
-                match cfruit {
-                    Some(cfruit) => {
-                        win.attrset(ColorPair(3));
-                        for fruit in fruits.iter() {
-                            win.mvaddch(fruit.y, fruit.x, '#');
-                        }
-                        win.attrset(ColorPair(7));
-                        win.mvaddch(cfruit.y, cfruit.x, 'O');
+
+                if let Some(cfruit) = cfruit {
+                    win.attrset(ColorPair(3));
+                    for fruit in fruits.iter() {
+                        win.mvaddch(fruit.y, fruit.x, '#');
                     }
-                    None => (),
+                    win.attrset(ColorPair(7));
+                    win.mvaddch(cfruit.y, cfruit.x, 'O');
                 }
             }
 
@@ -448,7 +442,7 @@ fn main() {
             break;
         }
 
-        let dur_ms = start.elapsed().subsec_nanos() / 1000000;
+        let dur_ms = start.elapsed().subsec_millis();
         win.mvaddstr(max.0 - 1, 0, &format!("{} ms", dur_ms));
         let dur_sleep = if dur_ms >= max_ms { 0 } else { max_ms - dur_ms } as u64;
         thread::sleep(time::Duration::from_millis(dur_sleep));
