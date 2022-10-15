@@ -29,7 +29,7 @@ impl Direction {
             Direction::Up,
             Direction::Down,
         ];
-        DIRECTIONS.into_iter()
+        DIRECTIONS.iter()
     }
 }
 
@@ -85,7 +85,7 @@ struct Snake<'s> {
     /// Is the snake dead?
     dead: bool,
     /// Takes function that steer the Snake
-    input_handler: &'s Fn(&mut Snake, &Window, Option<Input>),
+    input_handler: &'s dyn Fn(&mut Snake, &Window, Option<Input>),
 }
 
 impl<'s> Snake<'s> {
