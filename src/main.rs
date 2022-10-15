@@ -2,7 +2,6 @@ extern crate pancurses;
 extern crate rand;
 
 use pancurses::*;
-use rand::distributions::{IndependentSample, Range};
 use rand::Rng;
 use std::{thread, time};
 use std::collections::VecDeque;
@@ -10,6 +9,8 @@ use std::collections::HashSet;
 use std::collections::HashMap;
 use std::slice::Iter;
 use std::time::Instant;
+use rand::distributions::{Distribution, Standard};
+use rand::seq::SliceRandom;
 
 #[derive(Clone, Debug, PartialEq)]
 enum Direction {
@@ -33,18 +34,17 @@ impl Direction {
     }
 }
 
-impl rand::Rand for Direction {
-    fn rand<R: rand::Rng>(rng: &mut R) -> Self {
+impl Distribution<Direction> for Standard {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Direction {
         static ALL: [Direction; 4] = [
             Direction::Left,
             Direction::Right,
             Direction::Up,
             Direction::Down,
         ];
-        return rng.choose(&ALL).unwrap().clone();
+        return ALL.choose(rng).unwrap().clone();
     }
 }
-
 #[derive(Clone, Debug, PartialEq, Hash, Eq)]
 struct Pos {
     x: i32,
@@ -200,8 +200,8 @@ impl<'s> Snake<'s> {
                 win.attrset(ColorPair(3));
                 let mut rng = rand::thread_rng();
                 loop {
-                    let y = Range::new(0, max.0).ind_sample(&mut rng);
-                    let x = Range::new(0, max.1).ind_sample(&mut rng);
+                    let y = rng.gen_range(0..=max.0);
+                    let x = rng.gen_range(0..=max.1);
                     let pos = Pos { x, y };
                     if !fruits.contains(&pos) {
                         fruits.push(pos);
@@ -312,7 +312,7 @@ fn random_ai(snake: &mut Snake, win: &Window, _key: Option<Input>) {
         } else if head.y == max.0 - 1 {
             forbidden.push_back(Direction::Down);
         }
-        if rand::thread_rng().gen_weighted_bool(10) {
+        if rand::thread_rng().gen_bool(0.1) {
             snake.set_dir(rand::random::<Direction>());
         }
         while forbidden.contains(&snake.d) {
@@ -386,8 +386,8 @@ fn main() {
             input_handler: &random_ai,
         };
         bad_snake.p.push_front(Pos {
-            x: Range::new(0, max.1).ind_sample(&mut rng),
-            y: Range::new(0, max.0).ind_sample(&mut rng),
+            x: rng.gen_range(0..=max.1),
+            y: rng.gen_range(0..=max.0),
         });
         snakes.push(bad_snake);
     }
@@ -401,8 +401,8 @@ fn main() {
     let mut fruits = Vec::new();
     win.attrset(ColorPair(3));
     for _ in 0..50 {
-        let y = Range::new(0, max.0).ind_sample(&mut rng);
-        let x = Range::new(0, max.1).ind_sample(&mut rng);
+        let y = rng.gen_range(0..=max.0);
+        let x = rng.gen_range(0..=max.1);
         fruits.push(Pos { x: x, y: y });
         win.mvaddch(y, x, fruitsymbol);
     }
